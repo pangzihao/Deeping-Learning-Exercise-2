@@ -258,3 +258,110 @@ max_norm      = 5
 step_size     = 1
 dropout       = 0.35
 ```
+
+* Define the main function and supporting functions
+
+```python
+def main(hidden_size,
+         layer_num,
+         init_val,
+         batch_size,
+         learning_rate,
+         epochs,
+         max_norm,
+         seq_length,
+         step_size,
+         dropout):
+
+    # Initialization and data loading
+    trn_data, vld_data, tst_data, vocab_size = data_init()
+    train_data = minibatch(trn_data, batch_size, seq_length)
+    val_data = minibatch(vld_data, batch_size, seq_length)
+    test_data = minibatch(tst_data, batch_size, seq_length)
+
+    data = (train_data, val_data, test_data)
+    results = []
+    settings = [
+        (True, 0),       # LSTM without dropout
+        (True, dropout), # LSTM with dropout
+        (False, dropout), # GRU with dropout
+        (False, 0),      # GRU without dropout
+    ]
+
+    # Iterate over each setting
+    for lstm, dropout in settings:
+        model = RNNModel(vocab_size,
+                         hidden_size,
+                         layer_num,
+                         dropout,
+                         init_val,
+                         lstm)
+        if train_on_gpu:
+            model.cuda()
+
+        if lstm:
+          model_type = 'LSTM'
+        else:
+          model_type = 'GRU'
+
+        if dropout == 0:
+          epoch = epochs[0]
+          decayRate = 2
+          eLimit    = 4
+        else:
+          epoch = epochs[1]
+          decayRate = 1.2
+          eLimit     = 6
+          if not lstm:
+                learning_rate = 0.6
+
+        # Parameter changes for GRU architecture
+        if (not lstm) & (dropout == 0):
+          learning_rate = 0.6
+          epoch = epoch + 5
+          seq_length = seq_length + 65
+
+        description = (model_type, dropout)
+
+        train_perp, val_perp, test_perp = train(data, model, epoch, step_size, decayRate, eLimit, learning_rate, lstm)
+
+        print(" train = {:.3f}, ".format(train_perp[-1]) +
+             " validation = {:.3f}, ".format(val_perp[-1]) +
+             " test = {:.3f}, ".format(test_perp[-1]))
+
+        results.append([description, train_perp[-1], val_perp[-1], test_perp[-1]])
+
+        # Plotting the perplexity
+        plt.figure()
+        plt.plot(range(epoch), train_perp, label='Train Perplexity')
+        #plt.plot(range(epoch), val_perp, label='Validation Perplexity')
+        plt.plot(range(epoch), test_perp, label='Test Perplexity')
+        plt.title(f'Model: {"LSTM" if lstm else "GRU"} with {"dropout" if dropout > 0 else "no dropout"}')
+        plt.xlabel('Epochs')
+        plt.ylabel('Perplexity')
+        plt.legend()
+        plt.show()
+
+    # Plotting the results in a table
+    fig, ax = plt.subplots(figsize=(12, 3))
+    ax.axis('tight')
+    ax.axis('off')
+    table = ax.table(cellText=results, colLabels=['Model', 'Train Perplexity', 'Validation Perplexity', 'Test Perplexity'], loc='center', cellLoc='center')
+    plt.show()
+```
+
+* Conducting the main function
+
+```python
+if __name__ == '__main__':
+    main(hidden_size,
+         layer_num,
+         init_val,
+         batch_size,
+         learning_rate,
+         epochs,
+         max_norm,
+         seq_length,
+         step_size,
+         dropout)
+```
