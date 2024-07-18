@@ -365,3 +365,6 @@ if __name__ == '__main__':
          step_size,
          dropout)
 ```
+
+* References
+Zaremba, W. (2014). LSTM and GRU RNNs on Penn Treebank dataset [Source Code]. GitHub. https://github.com/wojzaremba/lstm
